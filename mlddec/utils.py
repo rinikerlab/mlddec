@@ -84,3 +84,9 @@ def get_charges(mol, model_dict):
     # correct the partial charges
 
     return [(pred_q[i] - abs(pred_q[i]) * sd_rf[i] * deltaQ) for i in range(num_atoms)]
+
+def add_charges_to_mol(mol, charges):
+    assert mol.GetNumAtoms() == len(charges)
+    for i,atm in enumerate(mol.GetAtoms()):
+        atm.SetDoubleProp("PartialCharge", charges[i])
+    # return mol
