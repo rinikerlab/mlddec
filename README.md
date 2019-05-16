@@ -7,7 +7,7 @@ import mlddec
 
 epsilon = 4
 models  = mlddec.load_models(epsilon)
-charges = mlddec.get_charges(mol, moldels)
-add_charges_to_mol(mol, charges)
+charges = mlddec.get_charges(mol, models)
+mlddec.add_charges_to_mol(mol, charges)
 
 ```

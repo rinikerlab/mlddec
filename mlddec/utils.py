@@ -1,3 +1,12 @@
+"""
+model persistence
+https://cmry.github.io/notes/serialize
+https://stackabuse.com/scikit-learn-save-and-restore-models/
+https://github.com/scikit-learn/scikit-learn/issues/10319
+https://stackoverflow.com/questions/20156951/how-do-i-find-which-attributes-my-tree-splits-on-when-using-scikit-learn
+http://thiagomarzagao.com/2015/12/08/saving-TfidfVectorizer-without-pickles/
+
+"""
 def get_data_filename(relative_path):
     """Get the full path to one of the reference files in testsystems.
     In the source distribution, these files are in ``openforcefield/data/``,
@@ -85,8 +94,8 @@ def get_charges(mol, model_dict):
 
     return [(pred_q[i] - abs(pred_q[i]) * sd_rf[i] * deltaQ) for i in range(num_atoms)]
 
-def add_charges_to_mol(mol, charges):
+def add_charges_to_mol(mol, charges, property_name = "PartialCharge"):
     assert mol.GetNumAtoms() == len(charges)
     for i,atm in enumerate(mol.GetAtoms()):
-        atm.SetDoubleProp("PartialCharge", charges[i])
+        atm.SetDoubleProp(property_name, charges[i])
     # return mol
