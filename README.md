@@ -1,6 +1,8 @@
 # mlddec
 Random forest models for predicting atomic partial charges, fitted to DFT + DDEC6 calculations.
 
+Modified code based on [publication](https://pubs.acs.org/doi/abs/10.1021/acs.jcim.7b00663).
+
 # usage
 ```python
 import mlddec
