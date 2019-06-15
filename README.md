@@ -13,3 +13,8 @@ charges = mlddec.get_charges(mol, models)
 mlddec.add_charges_to_mol(mol, charges)
 
 ```
+
+
+## Maintainer
+Shuzhe Wang
+
