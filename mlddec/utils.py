@@ -7,7 +7,10 @@ https://stackoverflow.com/questions/20156951/how-do-i-find-which-attributes-my-t
 http://thiagomarzagao.com/2015/12/08/saving-TfidfVectorizer-without-pickles/
 
 """
-def get_data_filename(relative_path):
+def validate_models():
+    return
+
+def _get_data_filename(relative_path):
     """Get the full path to one of the reference files in testsystems.
     In the source distribution, these files are in ``openforcefield/data/``,
     but on installation, they're moved to somewhere in the user's python
@@ -33,8 +36,18 @@ def load_models(epsilon = 4):
                    9:"F", 15:"P", 16:"S", 17:"Cl", \
                    35:"Br", 53:"I"}
     #directory, containing the models
+    progress_bar = True
     try:
-        rf = {element : [joblib.load(get_data_filename("epsilon_{}/{}_{}.model".format(epsilon, elementdict[element], i))) for i in range(100)] for element in element_list}
+        import tqdm
+    except ImportError:
+        progress_bar = False
+    try:
+        if progress_bar:
+            rf = {element : [joblib.load(_get_data_filename("epsilon_{}/{}_{}.model".format(epsilon, elementdict[element], i))) for i in range(100)] for element in tqdm.tqdm(element_list)}
+
+        else:
+            rf = {element : [joblib.load(_get_data_filename("epsilon_{}/{}_{}.model".format(epsilon, elementdict[element], i))) for i in range(100)] for element in element_list}
+
     except ValueError:
         raise ValueError("No model for epsilon value of {}".format(epsilon))
     return rf
@@ -46,10 +59,15 @@ def get_charges(mol, model_dict):
     mol : rdkit molecule
     model_dict : dictionary of random forest models
     """
-    from rdkit import DataStructs
+    from rdkit import DataStructs, Chem
     from rdkit.Chem import AllChem
     import numpy as np
+
     num_atoms = mol.GetNumAtoms()
+    if num_atoms != Chem.AddHs(mol).GetNumAtoms():
+        import warnings
+        warnings.warn("Have you added hydrogens to the molecule?", UserWarning)
+
     element_list = [1, 6, 7, 8, 9, 15, 16, 17, 35, 53]
 
     # maximum path length in atompairs-fingerprint
@@ -94,8 +112,100 @@ def get_charges(mol, model_dict):
 
     return [(pred_q[i] - abs(pred_q[i]) * sd_rf[i] * deltaQ) for i in range(num_atoms)]
 
-def add_charges_to_mol(mol, charges, property_name = "PartialCharge"):
-    assert mol.GetNumAtoms() == len(charges)
+def add_charges_to_mol(mol, model_dict = None,  charges = None, property_name = "PartialCharge"):
+    """
+    if charges is None, perform fitting using `get_charges`, for this `model_dict` needs to be provided
+    """
+    if type(charges) is list:
+        assert mol.GetNumAtoms() == len(charges)
+    elif charges is None and model_dict is not None:
+        charges = get_charges(mol, model_dict)
     for i,atm in enumerate(mol.GetAtoms()):
         atm.SetDoubleProp(property_name, charges[i])
     # return mol
+
+
+def _draw_mol_with_property( mol, property ):
+    """
+    http://rdkit.blogspot.com/2015/02/new-drawing-code.html
+
+    Parameters
+    ---------
+    property : dict
+        key atom idx, val the property (need to be stringfiable)
+    """
+    from rdkit.Chem import Draw
+    from rdkit.Chem import AllChem
+
+    def run_from_ipython():
+        try:
+            __IPYTHON__
+            return True
+        except NameError:
+            return False
+
+
+    AllChem.Compute2DCoords(mol)
+    for idx in property:
+        # opts.atomLabels[idx] =
+        mol.GetAtomWithIdx( idx ).SetProp( 'molAtomMapNumber', "({})".format( str(property[idx])))
+
+    mol = Draw.PrepareMolForDrawing(mol, kekulize=False) #enable adding stereochem
+
+    if run_from_ipython():
+        from IPython.display import SVG, display
+        drawer = Draw.MolDraw2DSVG(500,250)
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        display(SVG(drawer.GetDrawingText().replace("svg:", "")))
+    else:
+        drawer = Draw.MolDraw2DCairo(500,250) #cairo requires anaconda rdkit
+        # opts = drawer.drawOptions()
+        drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        #
+        # with open("/home/shuwang/sandbox/tmp.png","wb") as f:
+        #     f.write(drawer.GetDrawingText())
+
+        import io
+        import matplotlib.pyplot as plt
+        import matplotlib.image as mpimg
+
+        buff = io.BytesIO()
+        buff.write(drawer.GetDrawingText())
+        buff.seek(0)
+        plt.figure()
+        i = mpimg.imread(buff)
+        plt.imshow(i)
+        plt.show()
+        # display(SVG(drawer.GetDrawingText()))
+
+
+def visualise_charges(mol, show_hydrogens = False, property_name = "PartialCharge" ):
+    if not show_hydrogens:
+        from rdkit import Chem
+        mol = Chem.RemoveHs(mol)
+
+    atom_mapping = {}
+    for idx,atm in enumerate(mol.GetAtoms()):
+        try:
+            #currently only designed with partial charge in mind
+            # keeps 2.s.f, and remove starting `0.``
+            tmp =  atm.GetProp(property_name)
+            try:
+                tmp =  str("{0:.2g}".format(float(tmp)))
+                if tmp[0:3] == "-0.":
+                    tmp = "-" + tmp[2:]
+                elif tmp[0:2] == "0.":
+                    tmp = tmp[1:]
+            except:
+                pass
+            atom_mapping[idx] = tmp
+        except Exception as e:
+            print("Failed at atom number {} due to {}".format(idx, e))
+            return
+    _draw_mol_with_property(mol, atom_mapping)
+
+
+def visualize_charges(mol, show_hydrogens = False, property_name = "PartialCharge" ):
+    return visualise_charges(mol, show_hydrogens, property_name)
