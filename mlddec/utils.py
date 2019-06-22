@@ -72,6 +72,7 @@ def load_models(epsilon = 4):
         import tqdm
     except ImportError:
         progress_bar = False
+    print("Loading models...")
     try:
         if progress_bar:
             rf = {element : [joblib.load(_get_data_filename("epsilon_{}/{}_{}.model".format(epsilon, elementdict[element], i))) for i in range(100)] for element in tqdm.tqdm(element_list)}
@@ -156,7 +157,7 @@ def add_charges_to_mol(mol, model_dict = None,  charges = None, property_name = 
     return mol
 
 
-def _draw_mol_with_property( mol, property ):
+def _draw_mol_with_property( mol, property, **kwargs ):
     """
     http://rdkit.blogspot.com/2015/02/new-drawing-code.html
 
@@ -185,12 +186,18 @@ def _draw_mol_with_property( mol, property ):
 
     if run_from_ipython():
         from IPython.display import SVG, display
-        drawer = Draw.MolDraw2DSVG(500,250)
+        if "width" in kwargs and type(kwargs["width"]) is int and "height" in kwargs and type(kwargs["height"]) is int:
+            drawer = Draw.MolDraw2DSVG(kwargs["width"], kwargs["height"])
+        else:
+            drawer = Draw.MolDraw2DSVG(500,250)
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
         display(SVG(drawer.GetDrawingText().replace("svg:", "")))
     else:
-        drawer = Draw.MolDraw2DCairo(500,250) #cairo requires anaconda rdkit
+        if "width" in kwargs and type(kwargs["width"]) is int and "height" in kwargs and type(kwargs["height"]) is int:
+            drawer = Draw.MolDraw2DCairo(kwargs["width"], kwargs["height"])
+        else:
+            drawer = Draw.MolDraw2DCairo(500,250) #cairo requires anaconda rdkit
         # opts = drawer.drawOptions()
         drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
@@ -212,7 +219,7 @@ def _draw_mol_with_property( mol, property ):
         # display(SVG(drawer.GetDrawingText()))
 
 
-def visualise_charges(mol, show_hydrogens = False, property_name = "PartialCharge" ):
+def visualise_charges(mol, show_hydrogens = False, property_name = "PartialCharge" , **kwargs):
     if not show_hydrogens:
         from rdkit import Chem
         mol = Chem.RemoveHs(mol)
@@ -235,8 +242,8 @@ def visualise_charges(mol, show_hydrogens = False, property_name = "PartialCharg
         except Exception as e:
             print("Failed at atom number {} due to {}".format(idx, e))
             return
-    _draw_mol_with_property(mol, atom_mapping)
+    _draw_mol_with_property(mol, atom_mapping, **kwargs)
 
 
-def visualize_charges(mol, show_hydrogens = False, property_name = "PartialCharge" ):
-    return visualise_charges(mol, show_hydrogens, property_name)
+def visualize_charges(mol, show_hydrogens = False, property_name = "PartialCharge", **kwargs ):
+    return visualise_charges(mol, show_hydrogens, property_name, **kwargs)
