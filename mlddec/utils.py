@@ -1,14 +1,44 @@
 """
-model persistence
+# removing obsolete models including git history:
+https://help.github.com/en/articles/removing-files-from-a-repositorys-history
+
+# model persistence
 https://cmry.github.io/notes/serialize
 https://stackabuse.com/scikit-learn-save-and-restore-models/
 https://github.com/scikit-learn/scikit-learn/issues/10319
 https://stackoverflow.com/questions/20156951/how-do-i-find-which-attributes-my-tree-splits-on-when-using-scikit-learn
 http://thiagomarzagao.com/2015/12/08/saving-TfidfVectorizer-without-pickles/
 
+#############################################
+#Forest to trees Extraction code:
+import joblib
+import glob
+
+for model in glob.glob("*.model"):
+        print(model)
+        forest = joblib.load(model).estimators_
+        for idx, tree in enumerate(forest):
+                joblib.dump(tree, "./epsilon_4/{}_{}.model".format(model.split(".")[0], idx), compress = 9)
+#############################################
 """
-def validate_models():
-    return
+
+def validate_models(model_dict, epsilon):
+    import numpy as np
+    from rdkit import Chem
+    import tqdm
+    try:
+        smiles = np.load(_get_data_filename("validated_results/test_smiles.npy"), allow_pickle = True)
+        charges =np.load(_get_data_filename("validated_results/test_charges_{}.npy".format(epsilon)), allow_pickle = True)
+    except ValueError:
+        raise ValueError("No model for epsilon value of {}".format(epsilon))
+
+    print("Checking through molecule dataset, stops when discrepencies are observed...")
+    for s,c in tqdm.tqdm(list(zip(smiles, charges))):
+        if np.any(~np.isclose(get_charges(Chem.AddHs(Chem.MolFromSmiles(s)), model_dict) , c, atol = 0.01)):
+            print("No close match for {}, validation terminated.".format(smiles))
+            return
+
+
 
 def _get_data_filename(relative_path):
     """Get the full path to one of the reference files in testsystems.
@@ -28,7 +58,8 @@ def _get_data_filename(relative_path):
     return fn
 
 def load_models(epsilon = 4):
-    from sklearn.externals import joblib
+    # from sklearn.externals import joblib
+    import joblib
     # supported elements (atomic numbers)
     # H, C, N, O, F, P, S, Cl, Br, I
     element_list = [1, 6, 7, 8, 9, 15, 16, 17, 35, 53]
@@ -122,7 +153,7 @@ def add_charges_to_mol(mol, model_dict = None,  charges = None, property_name = 
         charges = get_charges(mol, model_dict)
     for i,atm in enumerate(mol.GetAtoms()):
         atm.SetDoubleProp(property_name, charges[i])
-    # return mol
+    return mol
 
 
 def _draw_mol_with_property( mol, property ):
